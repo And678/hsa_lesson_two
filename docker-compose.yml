@@ -1,0 +1,79 @@
+version: "3.9"
+services:
+  elasticsearch:
+    image: elasticsearch:7.13.3
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    environment:
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - cluster.routing.allocation.disk.threshold_enabled=false
+
+  mongo:
+    image: mongo:4.4
+    restart: always
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: password
+
+
+  influxdb:
+    image: influxdb:1.8
+    ports:
+      - "8083:8083"
+      - "8086:8086"
+      - "8090:8090"
+      - "2003:2003"
+    env_file:
+      - 'env.influxdb'
+    volumes:
+      # Data persistency
+      # sudo mkdir -p /srv/docker/influxdb/data
+      - /srv/docker/influxdb/data:/var/lib/influxdb
+
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    env_file:
+      - 'env.grafana'
+    links:
+      - influxdb
+    user: "0"
+    volumes:
+      # Data persistency
+      # sudo mkdir -p /srv/docker/grafana/data; chown 472:472 /srv/docker/grafana/data
+      - /srv/docker/grafana/data:/var/lib/grafana
+
+
+  telegraf:
+    image: telegraf:latest
+    links:
+      - influxdb
+    volumes:
+      - ./telegraf.conf:/etc/telegraf/telegraf.conf:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+
+
+#  lessontwo:
+#    container_name: lessontwo
+#    build: .
+#    links:
+#      - mongo
+#      - elasticsearch
+#    ports:
+#      - "4222:4222"
+#
+#  nginx:
+#    image: nginx:latest
+#    ports:
+#      - "80:80"
+#    links:
+#      - lessontwo
+#    volumes:
+#      - /home/andriy/highload/lesson-two/docker:/etc/nginx/conf.d
